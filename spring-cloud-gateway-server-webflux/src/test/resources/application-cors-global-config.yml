@@ -1,0 +1,10 @@
+spring:
+  cloud:
+    gateway.server.webflux:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            maxAge: 10
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
