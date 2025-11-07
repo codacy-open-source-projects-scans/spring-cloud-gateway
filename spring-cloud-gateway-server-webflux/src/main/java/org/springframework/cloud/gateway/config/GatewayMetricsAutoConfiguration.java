@@ -62,7 +62,8 @@ import org.springframework.web.reactive.DispatcherHandler;
 @AutoConfigureBefore(HttpHandlerAutoConfiguration.class)
 @AutoConfigureAfter({ MetricsAutoConfiguration.class, CompositeMeterRegistryAutoConfiguration.class,
 		ObservationAutoConfiguration.class, MicrometerTracingAutoConfiguration.class })
-@ConditionalOnClass({ DispatcherHandler.class, MeterRegistry.class, MetricsAutoConfiguration.class })
+@ConditionalOnClass({ DispatcherHandler.class, MeterRegistry.class, MetricsAutoConfiguration.class,
+		MicrometerTracingAutoConfiguration.class })
 public class GatewayMetricsAutoConfiguration {
 
 	@Bean
@@ -130,8 +131,8 @@ public class GatewayMetricsAutoConfiguration {
 		}
 
 		@Configuration(proxyBeanMethods = false)
-		@ConditionalOnClass(Tracer.class)
-		@ConditionalOnBean(Tracer.class)
+		@ConditionalOnClass({ Tracer.class, TracingProperties.class })
+		@ConditionalOnBean({ Tracer.class, TracingProperties.class })
 		static class GatewayTracingConfiguration {
 
 			@Bean
