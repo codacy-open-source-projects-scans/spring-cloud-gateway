@@ -21,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.BucketConfiguration;
@@ -29,6 +30,7 @@ import io.github.bucket4j.distributed.AsyncBucketProxy;
 import io.github.bucket4j.distributed.proxy.AsyncProxyManager;
 
 import org.springframework.cloud.gateway.server.mvc.common.MvcUtils;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.util.Assert;
@@ -36,6 +38,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.function.HandlerFilterFunction;
 import org.springframework.web.servlet.function.ServerRequest;
 import org.springframework.web.servlet.function.ServerResponse;
+
+import static org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration.APPLICATION_TASK_EXECUTOR_BEAN_NAME;
 
 public abstract class Bucket4jFilterFunctions {
 
@@ -65,6 +69,8 @@ public abstract class Bucket4jFilterFunctions {
 			Consumer<RateLimitConfig> configConsumer) {
 		RateLimitConfig config = new RateLimitConfig();
 		configConsumer.accept(config);
+		Supplier<BucketConfiguration> bucketConfigurationSupplier = () -> config.configurationBuilder.apply(config);
+
 		return (request, next) -> {
 			AsyncProxyManager proxyManager = MvcUtils.getApplicationContext(request).getBean(AsyncProxyManager.class);
 			String key = config.getKeyResolver().apply(request);
@@ -72,7 +78,11 @@ public abstract class Bucket4jFilterFunctions {
 				// TODO: configurable empty key status code
 				return ServerResponse.status(HttpStatus.FORBIDDEN).build();
 			}
-			AsyncBucketProxy bucket = proxyManager.builder().build(key, () -> config.configurationBuilder.apply(config));
+			TaskExecutor taskExecutor = MvcUtils.getApplicationContext(request)
+				.getBean(APPLICATION_TASK_EXECUTOR_BEAN_NAME, TaskExecutor.class);
+			Supplier<CompletableFuture<BucketConfiguration>> configSupplier = () -> CompletableFuture
+				.supplyAsync(bucketConfigurationSupplier, taskExecutor);
+			AsyncBucketProxy bucket = proxyManager.builder().build(key, configSupplier);
 			CompletableFuture<ConsumptionProbe> bucketFuture = bucket.tryConsumeAndReturnRemaining(config.getTokens());
 			ConsumptionProbe consumptionProbe;
 			if (config.getTimeout() != null) {
