@@ -25,6 +25,7 @@ import java.util.function.BiFunction;
 import jakarta.servlet.http.Cookie;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.loadbalancer.CompletionContext;
@@ -184,7 +185,7 @@ public abstract class LoadBalancerFilterFunctions {
 		}
 
 		@Override
-		public Map<String, String> getMetadata() {
+		public @Nullable Map<String, String> getMetadata() {
 			return delegate.getMetadata();
 		}
 

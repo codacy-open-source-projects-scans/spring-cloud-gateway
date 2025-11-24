@@ -18,6 +18,7 @@ package org.springframework.cloud.gateway.filter;
 
 import java.net.URI;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
@@ -98,6 +99,7 @@ public class ReactiveLoadBalancerClientFilter implements GlobalFilter, Ordered {
 		}
 
 		URI requestUri = exchange.getAttribute(GATEWAY_REQUEST_URL_ATTR);
+		Objects.requireNonNull(requestUri, "requestUri can not be null");
 		String serviceId = requestUri.getHost();
 		Set<LoadBalancerLifecycle> supportedLifecycleProcessors = LoadBalancerLifecycleValidator
 			.getSupportedLifecycleProcessors(clientFactory.getInstances(serviceId, LoadBalancerLifecycle.class),
@@ -118,6 +120,7 @@ public class ReactiveLoadBalancerClientFilter implements GlobalFilter, Ordered {
 
 			// if the `lb:<scheme>` mechanism was used, use `<scheme>` as the default,
 			// if the loadbalancer doesn't provide one.
+			Objects.requireNonNull(retrievedInstance, "retrievedInstance can not be null");
 			String overrideScheme = retrievedInstance.isSecure() ? "https" : "http";
 			if (schemePrefix != null) {
 				overrideScheme = url.getScheme();
