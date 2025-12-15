@@ -58,36 +58,33 @@ public class TransferEncodingNormalizationHeadersFilterIntegrationTests {
 
 	private static final Log log = LogFactory.getLog(TransferEncodingNormalizationHeadersFilterIntegrationTests.class);
 
-	private static final String validRequest = "POST /route/echo HTTP/1.1\r\n" + "Host: localhost:8080\r\n"
-			+ "Content-Type: application/json\r\n" + "Content-Length: 15\r\n" + "Connection: close\r\n" + "\r\n"
-			+ "{\"message\":\"3\"}";
-
 	private static final String invalidRequest = "POST /route/echo HTTP/1.0\r\n" + "Host: localhost:8080\r\n"
 			+ "Content-Length: 19\r\n" + "Transfer-encoding: Chunked\r\n" + "Content-Type: application/json\r\n"
 			+ "Connection: close\r\n" + "\r\n" + "22\r\n" + "{\"message\":\"3\"}\r\n" + "\r\n"
 			+ "GET /nonexistantpath123 HTTP/1.0\r\n" + "0\r\n" + "\r\n";
 
+	private static final String validRequest = "POST /route/echo HTTP/1.1\r\n" + "Host: localhost:8080\r\n"
+			+ "Content-Type: application/json\r\n" + "Content-Length: 15\r\n" + "Connection: close\r\n" + "\r\n"
+			+ "{\"message\":\"3\"}\r\n";
+
 	@LocalServerPort
 	private int port;
 
 	@Test
-	void invalidRequestShouldFail() throws Exception {
-		// Issue a crafted request with smuggling attempt
-		assertStatus("Should Fail", invalidRequest, "400 Bad Request");
+	void legitRequestShouldNotFail() throws Exception {
+		// Issue a legit request, which should not fail
+		assertStatusWith("200 OK", "Should Not Fail", validRequest);
 	}
 
 	@Test
-	void legitRequestShouldNotFail() throws Exception {
-		// Issue a legit request, which should not fail
-		assertStatus("Should Not Fail", validRequest, "200 OK");
+	void badRequestShouldFail() throws Exception {
+		// Issue a crafted request with smuggling attempt
+		assertStatusWith("400 Bad Request", "Should Fail", invalidRequest);
 	}
 
-	private void assertStatus(String name, String payloadString, String status) throws Exception {
-		// String payloadString = new String(payload);
-		payloadString = payloadString.replace("8080", "" + port);
-
-		log.info(LogMessage.format("Request to localhost:%d %s\n%s", port, name, payloadString));
-		final String response = execute("localhost", port, payloadString);
+	private void assertStatusWith(String status, String name, String payload) throws Exception {
+		final String response = execute("localhost", port, payload);
+		log.info(LogMessage.format("Request to localhost:%d %s\n%s", port, name, payload));
 		assertThat(response).isNotNull();
 		log.info(LogMessage.format("Response %s\n%s", name, response));
 		assertThat(response).matches("HTTP/1.\\d " + status);

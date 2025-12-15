@@ -20,26 +20,22 @@ import java.util.List;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
-import io.micrometer.tracing.Tracer;
-import io.micrometer.tracing.propagation.Propagator;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.micrometer.metrics.autoconfigure.CompositeMeterRegistryAutoConfiguration;
 import org.springframework.boot.micrometer.metrics.autoconfigure.MetricsAutoConfiguration;
 import org.springframework.boot.micrometer.observation.autoconfigure.ObservationAutoConfiguration;
-import org.springframework.boot.micrometer.tracing.autoconfigure.MicrometerTracingAutoConfiguration;
-import org.springframework.boot.micrometer.tracing.autoconfigure.TracingProperties;
 import org.springframework.boot.webflux.autoconfigure.HttpHandlerAutoConfiguration;
 import org.springframework.cloud.gateway.filter.GatewayMetricsFilter;
 import org.springframework.cloud.gateway.filter.headers.observation.GatewayObservationConvention;
-import org.springframework.cloud.gateway.filter.headers.observation.GatewayPropagatingSenderTracingObservationHandler;
 import org.springframework.cloud.gateway.filter.headers.observation.ObservationClosingWebExceptionHandler;
 import org.springframework.cloud.gateway.filter.headers.observation.ObservedRequestHttpHeadersFilter;
 import org.springframework.cloud.gateway.filter.headers.observation.ObservedResponseHttpHeadersFilter;
@@ -61,9 +57,8 @@ import org.springframework.web.reactive.DispatcherHandler;
 @EnableConfigurationProperties(GatewayMetricsProperties.class)
 @AutoConfigureBefore(HttpHandlerAutoConfiguration.class)
 @AutoConfigureAfter({ MetricsAutoConfiguration.class, CompositeMeterRegistryAutoConfiguration.class,
-		ObservationAutoConfiguration.class, MicrometerTracingAutoConfiguration.class })
-@ConditionalOnClass({ DispatcherHandler.class, MeterRegistry.class, MetricsAutoConfiguration.class,
-		MicrometerTracingAutoConfiguration.class })
+		ObservationAutoConfiguration.class })
+@ConditionalOnClass({ DispatcherHandler.class, MeterRegistry.class, MetricsAutoConfiguration.class })
 public class GatewayMetricsAutoConfiguration {
 
 	@Bean
@@ -71,8 +66,10 @@ public class GatewayMetricsAutoConfiguration {
 		return new GatewayHttpTagsProvider();
 	}
 
+	// TODO: remove support for the property `metrics.tags.path.enabled` in the next major
 	@Bean
-	@ConditionalOnProperty(name = GatewayProperties.PREFIX + ".metrics.tags.path.enabled")
+	@ConditionalOnExpression("'${" + GatewayProperties.PREFIX + ".metrics.tags.path.enabled:false}' == 'true' || '${"
+			+ GatewayProperties.PREFIX + ".metrics.path-tags.enabled:false}' == 'true'")
 	public GatewayPathTagsProvider gatewayPathTagsProvider() {
 		return new GatewayPathTagsProvider();
 	}
@@ -128,23 +125,6 @@ public class GatewayMetricsAutoConfiguration {
 		@Order(Ordered.HIGHEST_PRECEDENCE)
 		ObservationClosingWebExceptionHandler observationClosingWebExceptionHandler() {
 			return new ObservationClosingWebExceptionHandler();
-		}
-
-		@Configuration(proxyBeanMethods = false)
-		@ConditionalOnClass({ Tracer.class, TracingProperties.class })
-		@ConditionalOnBean({ Tracer.class, TracingProperties.class })
-		static class GatewayTracingConfiguration {
-
-			@Bean
-			@ConditionalOnMissingBean
-			@ConditionalOnBean({ Propagator.class, TracingProperties.class })
-			@Order(Ordered.HIGHEST_PRECEDENCE + 5)
-			GatewayPropagatingSenderTracingObservationHandler gatewayPropagatingSenderTracingObservationHandler(
-					Tracer tracer, Propagator propagator, TracingProperties tracingProperties) {
-				return new GatewayPropagatingSenderTracingObservationHandler(tracer, propagator,
-						tracingProperties.getBaggage().getRemoteFields());
-			}
-
 		}
 
 	}
